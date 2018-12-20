@@ -1,24 +1,52 @@
-var crest = (function(){
+var JsTemplate = function() {
 
 	// vars
 	var templateString = "";
+	var templateFile = "";
+	var usingFile = false;
 	var targetID = "";
 	var layoutString = "";
 	var data = {};
 
 	// constants
 	var VAR_REGEX = /\{\{\w+\}\}/g;
+	var IF_REGEX = /@if\(([^)]+)\);/;
+	var ELSE_REGEX = /@else;/;
+	var ENDIF_REGEX = /@endif;/;
 
+
+
+
+/* ------------------------------------
+	PRIVATE FUNCTIONS
+--------------------------------------*/
+
+	function getIfs(){
+		
+		// while( templateString.includes('@if')){
+		// 	console.log(templateString);
+		// 	templateString.replace(IF_REGEX, '***');
+		// }
+
+		if(templateString.includes('@if')){
+			var ifData = IF_REGEX.exec(templateString);
+			var endData = ENDIF_REGEX.exec(templateString);
+			console.log(ifData);
+			console.log(endData);
+		}
+		
+
+	}
 
 	// extracts variable information from a string 
 	// returns an array of the variable extracted, its index, and its key
-	function getVariables(str){
+	function getVariables(){
 		// return str.exec(VAR_REGEX, str);
 		var data = [];
 		var arr = [];
 		var varString = "";
 		do {	
-			m = VAR_REGEX.exec(str);
+			m = VAR_REGEX.exec(templateString);
 
 			if( m ){
 				varString = m[0];
@@ -34,20 +62,33 @@ var crest = (function(){
 		return data;
 	}
 
-	function reqListener () {
-  console.log(this.responseText);
-}
 
-	function setLayout(file) {
-		if (!file) {
-			return;
-		}
-		var reader = new FileReader();
-		reader.onload = function(e) {
-			var contents = e.target.result;
-			console.log(contents);
-		};
-		// reader.readAsText(file);
+
+	function replaceVariables(){
+
+		let varInfo = getVariables();
+
+		varInfo.forEach(function(v){
+			if(data[v.key]){
+				templateString = templateString.replace(v.value, data[v.key]);
+			}
+			else{
+				templateString = templateString.replace(v.value, "");
+			}
+			
+		});
+	}
+
+
+
+/* ------------------------------------
+	PUBLIC FUNCTIONS
+--------------------------------------*/
+
+
+	function setTemplateFile(file){
+		usingFile = true;
+		templateFile = file;
 	}
 
 	function setTemplateString(str){
@@ -63,30 +104,33 @@ var crest = (function(){
 	}
 
 	function render(){
-		let varInfo = getVariables(templateString);
+
 		var root = document.getElementById(targetID);
 
-		varInfo.forEach(function(v){
-			if(data[v.key]){
-				templateString = templateString.replace(v.value, data[v.key]);
-			}
-			else{
-				templateString = templateString.replace(v.value, "");
-			}
-			
-		});
+		if( usingFile) {
+			$.get(templateFile, function(data){ 
 
-		root.innerHTML = templateString;
+				setTemplateString(data);
+				replaceVariables();
+				getIfs();
 
+				root.innerHTML = templateString;
+			} );
+		}
+		else {
+			replaceVariables();
+			getIfs();
+			root.innerHTML = templateString;
+		}
 		
 	}
 
-	return {
+	return Object.freeze({
 		setTemplateString: setTemplateString,
+		setTemplateFile: setTemplateFile,
 		setTargetID: setTargetID,
 		setVar: setVar,
-		setLayout: setLayout,
 		render: render
-	}
+	});
 
-})();
+};
